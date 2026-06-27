@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Викторина с Колесом</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .hidden { display: none; }
+        button {
+            background: #0088cc;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button.secondary { background: #6b7280; }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        /* Стили для колеса */
+        #wheel-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        #canvas { margin-top: 20px; }
+        #pointer {
+            width: 0; height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 20px solid #ef4444;
+            position: absolute;
+            top: 5px; z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="quiz-block" class="card">
+        <div id="question-container">
+            <h3 id="question-text">Вопрос 1: Как называется столица Франции?</h3>
+            <div id="answers-container">
+                <input type="text" id="text-answer" placeholder="Ваш ответ...">
+            </div>
+        </div>
+        <button id="next-btn" onclick="nextQuestion()">Далее</button>
+        <button class="secondary" onclick="showWheel()">Закончить досрочно</button>
+    </div>
+
+    <div id="wheel-block" class="card hidden">
+        <h2>Поздравляем! Крутите колесо!</h2>
+        <div id="wheel-container">
+            <div id="pointer"></div>
+            <canvas id="canvas" width="300" height="300"></canvas>
+            <button id="spin-btn" onclick="spinWheel()">Вращать!</button>
+        </div>
+        <h3 id="prize-text" style="text-align: center; color: #0088cc;"></h3>
+    </div>
+
+    <script>
+        // Данные вопросов
+        const questions = [
+            { text: "Вопрос 1 (Текст): Ваше любимое блюдо?", type: "text" },
+            { text: "Вопрос 2 (Тест): 2 + 2 = ?", type: "quiz", options: ["3", "4", "5"] }
+            // Добавь остальные до 10
+        ];
+
+        // Варианты на колесе
+        const prizes = ["Приз 🎁", "Скидка 🔟%", "Поцелуй 😘", "Ничего 😢", "Суперприз 🔥"];
+
+        let currentQ = 0;
+
+        function nextQuestion() {
+            currentQ++;
+            if (currentQ >= questions.length) {
+                showWheel();
+            } else {
+                renderQuestion();
+            }
+        }
+
+        function renderQuestion() {
+            const q = questions[currentQ];
+            document.getElementById("question-text").innerText = q.text;
+            const container = document.getElementById("answers-container");
+            container.innerHTML = "";
+
+            if (q.type === "text") {
+                container.innerHTML = '<input type="text" placeholder="Ваш ответ...">';
+            } else {
+                q.options.forEach(opt => {
+                    container.innerHTML += `<label><input type="radio" name="ans"> ${opt}</label><br>`;
+                });
+            }
+        }
+
+        function showWheel() {
+            document.getElementById("quiz-block").classList.add("hidden");
+            document.getElementById("wheel-block").classList.remove("hidden");
+            drawWheel();
+        }
+
+        // Логика рисования колеса
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        const numSectors = prizes.length;
+        const arc = Math.PI / (numSectors / 2);
+        let startAngle = 0;
+
+        function drawWheel() {
+            for (let i = 0; i < numSectors; i++) {
+                const angle = startAngle + i * arc;
+                ctx.fillStyle = i % 2 === 0 ? "#ffcc00" : "#ff6666";
+                ctx.beginPath();
+                ctx.moveTo(150, 150);
+                ctx.arc(150, 150, 140, angle, angle + arc);
+                ctx.lineTo(150, 150);
+                ctx.fill();
+
+                // Текст
+                ctx.save();
+                ctx.translate(150, 150);
+                ctx.rotate(angle + arc / 2);
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 14px sans-serif";
+                ctx.fillText(prizes[i], 50, 5);
+                ctx.restore();
+            }
+        }
+
+        // Логика вращения
+        let spinTimeout = null;
+        let spinAngleStart = 0;
+        let spinTime = 0;
+        let spinTimeTotal = 0;
+
+        function spinWheel() {
+            spinAngleStart = Math.random() * 10 + 10;
+            spinTime = 0;
+            spinTimeTotal = Math.random() * 3000 + 4000; // 4-7 секунд плавной анимации
+            rotateWheel();
+        }
+
+        function rotateWheel() {
+            spinTime += 30;
+            if (spinTime >= spinTimeTotal) {
+                stopRotateWheel();
+                return;
+            }
+            const spinAngle = spinAngleStart - easeOut(spinTime, 0, spinAngleStart, spinTimeTotal);
+            startAngle += (spinAngle * Math.PI / 180);
+            drawWheel();
+            spinTimeout = setTimeout(rotateWheel(), 30);
+        }
+
+        function stopRotateWheel() {
+            clearTimeout(spinTimeout);
+            const degrees = startAngle * 180 / Math.PI + 90;
+            const arcd = arc * 180 / Math.PI;
+            const index = Math.floor((360 - degrees % 360) / arcd);
+            const prize = prizes[(index + numSectors) % numSectors];
+            document.getElementById("prize-text").innerText = `Вы выиграли: ${prize}`;
+        }
+
+        function easeOut(t, b, c, d) {
+            const ts = (t /= d) * t;
+            const tc = ts * t;
+            return b + c * (tc + -3 * ts + 3 * t);
+        }
+    </script>
+</body>
+</html>
