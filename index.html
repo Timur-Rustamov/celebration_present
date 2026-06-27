@@ -442,6 +442,19 @@ const ENCOURAGEMENTS = [
     'Ещё один шаг — и подарок! 🎁', // заглушка для вопроса 9
 ];
 
+const WRONG_ENCOURAGEMENTS = [
+    'Было и было 😉',
+    'Давай вместе повспоминаем-ка — может, и ошибочка вышла )',
+    'Ну ты даёшь! Ты их, конечно, редко носила, но метко получается)',
+    'Ну не самая крутая майка, согласен — помнить не обязательно',
+    'Сообщение легендарное же у нас — надо помнить!',
+    'Столько вещей собранных и перевезённых — думал, ответишь правильно)',
+    'Пум-пум-пум, а напомни, какая у тебя?',
+    '', // TODO: допиши завтра — вопрос 8
+    '', // TODO: допиши завтра — вопрос 9
+    '', // TODO: допиши завтра — вопрос 10
+];
+
 const questions = [
     {
         text: 'Удивление по поводу того, скольким набранным баллам по ЦТ по русскому языку я выражал много раз?',
@@ -641,7 +654,8 @@ function checkAnswer() {
     markAnswer(correct);
     answerChecked = true;
 
-    document.getElementById('encouragement').textContent = ENCOURAGEMENTS[currentQ] || '';
+    document.getElementById('encouragement').textContent =
+        correct ? (ENCOURAGEMENTS[currentQ] || '') : (WRONG_ENCOURAGEMENTS[currentQ] || '');
     document.getElementById('check-btn').classList.add('hidden');
     document.getElementById('next-btn').classList.remove('hidden');
 
@@ -703,16 +717,7 @@ function checkSuperAnswer() {
     const selected = document.querySelector('input[name="super-ans"]:checked');
     if (!selected) return;
 
-    const chosen = superQuestion.options[parseInt(selected.value, 10)];
-    const correct = chosen === superQuestion.correct;
-
-    const label = selected.closest('.option');
-    label.classList.add(correct ? 'correct' : 'incorrect');
-    if (!correct) {
-        document.querySelectorAll('#super-options .option').forEach((opt, i) => {
-            if (superQuestion.options[i] === superQuestion.correct) opt.classList.add('correct');
-        });
-    }
+    selected.closest('.option').classList.add('correct');
     document.querySelectorAll('input[name="super-ans"]').forEach(r => r.disabled = true);
 
     superChecked = true;
@@ -819,21 +824,39 @@ function wrapText(ctx, text, maxWidth) {
     return lines.length ? lines : [text];
 }
 
+function normalizeAngle(a) {
+    return ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+}
+
+function getArc() {
+    return (2 * Math.PI) / prizes.length;
+}
+
+/** Угол, при котором центр сектора winIndex оказывается под стрелкой сверху */
+function getTargetRotation(winIndex) {
+    return normalizeAngle(-(winIndex + 0.5) * getArc());
+}
+
+/** Какой сектор сейчас под стрелкой */
+function getSectorAtPointer(rotation) {
+    const arc = getArc();
+    const shift = normalizeAngle(-Math.PI / 2 - rotation + Math.PI / 2);
+    return Math.floor(shift / arc) % prizes.length;
+}
+
 function spinWheel() {
     if (isSpinning) return;
     isSpinning = true;
     document.getElementById('spin-btn').disabled = true;
     document.getElementById('prize-result').textContent = '';
 
-    const n = prizes.length;
-    const arc = (2 * Math.PI) / n;
+    const targetRotation = getTargetRotation(WIN_INDEX);
+    const startNorm = normalizeAngle(wheelRotation);
+    let deltaForward = targetRotation - startNorm;
+    if (deltaForward <= 0) deltaForward += 2 * Math.PI;
+
     const extraSpins = 5 + Math.random() * 2;
-    // указатель сверху: сектор WIN_INDEX должен оказаться под стрелкой
-    const targetMod = -(WIN_INDEX * arc + arc / 2) % (2 * Math.PI);
-    let currentMod = wheelRotation % (2 * Math.PI);
-    let delta = targetMod - currentMod;
-    if (delta > 0) delta -= 2 * Math.PI;
-    const totalRotation = extraSpins * 2 * Math.PI + delta;
+    const totalRotation = extraSpins * 2 * Math.PI + deltaForward;
 
     const startRot = wheelRotation;
     const startTime = performance.now();
@@ -845,12 +868,16 @@ function spinWheel() {
     function frame(now) {
         const elapsed = now - startTime;
         const t = Math.min(elapsed / SPIN_DURATION, 1);
-        wheelRotation = startRot + totalRotation * easeOutCubic(t);
-        drawWheel();
 
         if (t < 1) {
+            wheelRotation = startRot + totalRotation * easeOutCubic(t);
+            drawWheel();
             animFrame = requestAnimationFrame(frame);
         } else {
+            // Точная фиксация — стрелка и текст совпадают
+            const fullTurns = Math.round((startRot + totalRotation - targetRotation) / (2 * Math.PI));
+            wheelRotation = fullTurns * 2 * Math.PI + targetRotation;
+            drawWheel();
             isSpinning = false;
             onWheelStop();
         }
@@ -860,7 +887,8 @@ function spinWheel() {
 }
 
 function onWheelStop() {
-    document.getElementById('prize-result').textContent = `🎉 ${prizes[WIN_INDEX]}!`;
+    const idx = getSectorAtPointer(wheelRotation);
+    document.getElementById('prize-result').textContent = `🎉 ${prizes[idx]}!`;
     document.getElementById('claim-btn').classList.remove('hidden');
     launchConfetti();
 }
