@@ -2,199 +2,927 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Викторина с Колесом</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Сюрприз для Пумбы</title>
     <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f3f4f6;
             margin: 0;
-            padding: 20px;
-            display: flex;
+            min-height: 100vh;
+            min-height: 100dvh;
+            background: linear-gradient(145deg, #fff0f3 0%, #ffe4ec 35%, #ffd6e0 70%, #ffc9d4 100%);
+            color: #3d2030;
+            overflow-x: hidden;
+        }
+
+        .screen {
+            display: none;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: 24px 20px;
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+            animation: fadeIn 0.45s ease;
         }
+
+        .screen.active { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .card {
-            background: white;
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            max-width: 400px;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(8px);
+            padding: 28px 22px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(180, 60, 100, 0.15);
+            max-width: 440px;
             width: 100%;
-            margin-bottom: 20px;
         }
-        .hidden { display: none; }
-        button {
-            background: #0088cc;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
+
+        .card.wide { max-width: 100%; }
+
+        h1 {
+            font-size: 1.55rem;
+            margin: 0 0 16px;
+            line-height: 1.35;
+            text-align: center;
+            color: #b83264;
         }
-        button.secondary { background: #6b7280; }
+
+        h2 {
+            font-size: 1.25rem;
+            margin: 0 0 14px;
+            text-align: center;
+            color: #b83264;
+            line-height: 1.4;
+        }
+
+        .welcome-text {
+            font-size: 1.05rem;
+            line-height: 1.65;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .progress-wrap { width: 100%; margin-bottom: 18px; }
+
+        .progress-label {
+            font-size: 0.85rem;
+            color: #9a4d6a;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #f5d0dc;
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e85d8a, #b83264);
+            border-radius: 99px;
+            transition: width 0.4s ease;
+        }
+
+        #question-text {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            margin: 0 0 16px;
+            font-weight: 600;
+        }
+
+        .encouragement {
+            text-align: center;
+            font-size: 1rem;
+            color: #c44d75;
+            margin: 14px 0 4px;
+            min-height: 1.4em;
+            font-weight: 500;
+        }
+
         input[type="text"] {
             width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 8px;
+            padding: 14px 16px;
+            border: 2px solid #e8b4c4;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: #fff;
+            transition: border-color 0.2s, background 0.2s;
         }
-        /* Стили для колеса */
-        #wheel-container {
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #e85d8a;
+        }
+
+        input.correct, .option.correct {
+            border-color: #22c55e !important;
+            background: #ecfdf3 !important;
+        }
+
+        input.incorrect, .option.incorrect {
+            border-color: #ef4444 !important;
+            background: #fef2f2 !important;
+        }
+
+        .options { display: flex; flex-direction: column; gap: 10px; }
+
+        .option {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            position: relative;
+            gap: 10px;
+            padding: 14px 16px;
+            border: 2px solid #e8b4c4;
+            border-radius: 12px;
+            cursor: pointer;
+            background: #fff;
+            transition: border-color 0.2s, background 0.2s;
+            font-size: 0.98rem;
+            line-height: 1.35;
         }
-        #canvas { margin-top: 20px; }
-        #pointer {
-            width: 0; height: 0;
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
-            border-top: 20px solid #ef4444;
+
+        .option input { accent-color: #b83264; flex-shrink: 0; }
+
+        .option.selected { border-color: #e85d8a; background: #fff5f8; }
+
+        .btn {
+            display: block;
+            width: 100%;
+            background: linear-gradient(135deg, #e85d8a, #b83264);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 14px;
+            transition: transform 0.15s, opacity 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 16px rgba(184, 50, 100, 0.3);
+        }
+
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+        .btn.secondary {
+            background: linear-gradient(135deg, #9ca3af, #6b7280);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        .btn.choice-btn { margin-top: 12px; }
+
+        .btn.pulse {
+            animation: pulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 4px 16px rgba(184, 50, 100, 0.3); }
+            50% { box-shadow: 0 4px 28px rgba(184, 50, 100, 0.55); transform: scale(1.02); }
+        }
+
+        .loading-text {
+            font-size: 1.15rem;
+            text-align: center;
+            color: #b83264;
+            font-weight: 600;
+            line-height: 1.5;
+        }
+
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.4s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%  { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+        }
+
+        .hearts-loader {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .hearts-loader span {
+            font-size: 1.6rem;
+            animation: heartBounce 0.9s ease-in-out infinite;
+        }
+
+        .hearts-loader span:nth-child(2) { animation-delay: 0.15s; }
+        .hearts-loader span:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes heartBounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-10px) scale(1.15); }
+        }
+
+        /* Wheel */
+        #screen-wheel {
+            padding: 12px 8px;
+            justify-content: flex-start;
+            padding-top: max(16px, env(safe-area-inset-top));
+        }
+
+        #screen-wheel h2 {
+            margin-bottom: 8px;
+            font-size: 1.15rem;
+        }
+
+        .wheel-wrap {
+            position: relative;
+            width: min(96vw, 420px);
+            height: min(96vw, 420px);
+            margin: 8px auto 16px;
+        }
+
+        #wheel-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 50%;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+        }
+
+        .wheel-pointer {
             position: absolute;
-            top: 5px; z-index: 10;
+            top: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 14px solid transparent;
+            border-right: 14px solid transparent;
+            border-top: 26px solid #ef4444;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
+            z-index: 10;
+        }
+
+        .spin-center-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #fff, #ffe8ef);
+            border: 4px solid #b83264;
+            color: #b83264;
+            font-size: 0.78rem;
+            font-weight: 800;
+            cursor: pointer;
+            z-index: 11;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            transition: transform 0.15s;
+            line-height: 1.15;
+            padding: 4px;
+        }
+
+        .spin-center-btn:active:not(:disabled) { transform: translate(-50%, -50%) scale(0.95); }
+        .spin-center-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        #prize-result {
+            text-align: center;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #b83264;
+            margin: 8px 0;
+            min-height: 1.4em;
+            padding: 0 12px;
+            line-height: 1.4;
+        }
+
+        #confetti-canvas {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .final-prize-text {
+            font-size: 1.2rem;
+            text-align: center;
+            line-height: 1.6;
+            color: #b83264;
+            font-weight: 600;
+        }
+
+        .tease-text {
+            font-size: 1.1rem;
+            text-align: center;
+            line-height: 1.55;
+            color: #9a3058;
+            font-weight: 600;
+            margin-bottom: 8px;
         }
     </style>
 </head>
 <body>
 
-    <div id="quiz-block" class="card">
-        <div id="question-container">
-            <h3 id="question-text">Вопрос 1: Как называется столица Франции?</h3>
-            <div id="answers-container">
-                <input type="text" id="text-answer" placeholder="Ваш ответ...">
-            </div>
-        </div>
-        <button id="next-btn" onclick="nextQuestion()">Далее</button>
-        <button class="secondary" onclick="showWheel()">Закончить досрочно</button>
+<canvas id="confetti-canvas"></canvas>
+
+<!-- Приветствие -->
+<div id="screen-welcome" class="screen active">
+    <div class="card">
+        <h1>Привет, Пумба! 💕</h1>
+        <p class="welcome-text">
+            Сегодня наша 13-я годовщина. 13 лет как один день — и я бесконечно благодарен тебе за это крутое путешествие, по пути на котором у нас появился ещё один дополнительный путешественник, что сидит рядом с нами за столом.
+        </p>
+        <p class="welcome-text">
+            Надеюсь, тебе здесь нравится и мы хорошо проведём время. А пока мы ждём заказ — давай узнаем, что же за подарок ждёт тебя сегодня ❤️ 😉
+        </p>
+        <button class="btn" onclick="goTo('screen-quiz')">Погнали, хочу уже быстрее узнать, что за подарок</button>
     </div>
+</div>
 
-    <div id="wheel-block" class="card hidden">
-        <h2>Поздравляем! Крутите колесо!</h2>
-        <div id="wheel-container">
-            <div id="pointer"></div>
-            <canvas id="canvas" width="300" height="300"></canvas>
-            <button id="spin-btn" onclick="spinWheel()">Вращать!</button>
+<!-- Квиз -->
+<div id="screen-quiz" class="screen">
+    <div class="card">
+        <div class="progress-wrap">
+            <div class="progress-label" id="progress-label">Вопрос 1 из 10</div>
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:10%"></div></div>
         </div>
-        <h3 id="prize-text" style="text-align: center; color: #0088cc;"></h3>
+        <p id="question-text"></p>
+        <div id="answers-container"></div>
+        <p class="encouragement" id="encouragement"></p>
+        <button class="btn" id="check-btn" onclick="checkAnswer()">Проверить</button>
+        <button class="btn hidden" id="next-btn" onclick="nextQuestion()">Дальше</button>
     </div>
+</div>
 
-    <script>
-        // Данные вопросов
-        const questions = [
-            { text: "Вопрос 1 (Текст): Ваше любимое блюдо?", type: "text" },
-            { text: "Вопрос 2 (Тест): 2 + 2 = ?", type: "quiz", options: ["3", "4", "5"] }
-            // Добавь остальные до 10
-        ];
+<!-- Выбор после 10 вопросов -->
+<div id="screen-choice" class="screen">
+    <div class="card">
+        <h2>Все ответила — давай подарок!!! 🎁</h2>
+        <button class="btn choice-btn" onclick="startSuperGame(false)">Суперигра</button>
+        <button class="btn choice-btn secondary" onclick="startSuperGame(true)">Забираю приз сейчас</button>
+    </div>
+</div>
 
-        // Варианты на колесе
-        const prizes = ["Приз 🎁", "Скидка 🔟%", "Поцелуй 😘", "Ничего 😢", "Суперприз 🔥"];
+<!-- Тизер при «Забираю приз сейчас» -->
+<div id="screen-tease" class="screen">
+    <div class="card">
+        <p class="tease-text">Эх ты, риск же дело благородное — поэтому без суперигры тебе не уйти 😏</p>
+        <button class="btn" onclick="goToSuperLoading()">Ладно, погнали!</button>
+    </div>
+</div>
 
-        let currentQ = 0;
+<!-- Загрузка суперигры -->
+<div id="screen-super-loading" class="screen">
+    <div class="card">
+        <p class="loading-text" id="loading-text">Риск — дело благородное, уважаю! Подгружаю вопрос<span class="loading-dots"></span></p>
+        <div class="hearts-loader"><span>❤️</span><span>💕</span><span>❤️</span></div>
+    </div>
+</div>
 
-        function nextQuestion() {
-            currentQ++;
-            if (currentQ >= questions.length) {
-                showWheel();
-            } else {
-                renderQuestion();
-            }
-        }
+<!-- Готова? -->
+<div id="screen-super-ready" class="screen">
+    <div class="card">
+        <h2>Приготовься, сейчас будет самый главный вопрос — ты готова?</h2>
+        <button class="btn" onclick="goTo('screen-super-question')">ДА!</button>
+    </div>
+</div>
 
-        function renderQuestion() {
-            const q = questions[currentQ];
-            document.getElementById("question-text").innerText = q.text;
-            const container = document.getElementById("answers-container");
-            container.innerHTML = "";
+<!-- Главный вопрос -->
+<div id="screen-super-question" class="screen">
+    <div class="card">
+        <p id="super-question-text" style="font-size:1.1rem;font-weight:600;margin:0 0 16px;line-height:1.5">
+            Кто главный в нашей семье?
+        </p>
+        <div class="options" id="super-options"></div>
+        <p class="encouragement" id="super-encouragement"></p>
+        <button class="btn" id="super-check-btn" onclick="checkSuperAnswer()">Проверить</button>
+        <button class="btn hidden pulse" id="super-wheel-btn" onclick="goToWheel()">Покажи уже скорее, какой подарок меня ждёт!</button>
+    </div>
+</div>
 
-            if (q.type === "text") {
-                container.innerHTML = '<input type="text" placeholder="Ваш ответ...">';
-            } else {
-                q.options.forEach(opt => {
-                    container.innerHTML += `<label><input type="radio" name="ans"> ${opt}</label><br>`;
+<!-- Колесо -->
+<div id="screen-wheel" class="screen">
+    <h2>Крути колесо фортуны! 🎡</h2>
+    <div class="wheel-wrap">
+        <div class="wheel-pointer"></div>
+        <canvas id="wheel-canvas"></canvas>
+        <button class="spin-center-btn" id="spin-btn" onclick="spinWheel()">КРУТИТЬ</button>
+    </div>
+    <p id="prize-result"></p>
+    <button class="btn hidden" id="claim-btn" style="max-width:440px;width:calc(100% - 40px)" onclick="claimPrize()">Забрать приз</button>
+</div>
+
+<!-- Финал -->
+<div id="screen-final" class="screen">
+    <div class="card">
+        <p class="final-prize-text">За подробностями подарка обратитесь к своему любимому мужу ❤️</p>
+    </div>
+</div>
+
+<script>
+const ENCOURAGEMENTS = [
+    'Ого, помнишь! Так держать, Пумба! 💪',
+    'Ты просто огонь! Идём дальше 🔥',
+    'Розовые туфли — легенда! 👠✨',
+    '13 лет назад... как будто вчера 💕',
+    'Сама малышня ;)',
+    'Будем надеяться, что гастроли по съёмным квартирам скоро закончатся 🏠',
+    'А скажи хоть теперь, какая у тебя? 🤔',
+    'Ты на финишной прямой! 🌟',  // заглушка для вопроса 8
+    'Ещё один шаг — и подарок! 🎁', // заглушка для вопроса 9
+];
+
+const questions = [
+    {
+        text: 'Удивление по поводу того, скольким набранным баллам по ЦТ по русскому языку я выражал много раз?',
+        type: 'text',
+        validate: v => v.trim() === '93',
+    },
+    {
+        text: 'Сколько человек ещё было с нами за столом при первой нашей встрече?',
+        type: 'text',
+        validate: v => v.trim() === '3',
+    },
+    {
+        text: 'Какого цвета туфли были на тебе при первой нашей встрече?',
+        type: 'text',
+        validate: v => ['розового', 'розовый', 'розовые', 'розовая'].includes(v.trim()),
+    },
+    {
+        text: 'Какого цвета майка была на мне 13 лет назад в этот самый день?',
+        type: 'text',
+        validate: v => ['черного', 'черный', 'чёрного', 'чёрный', 'черная', 'чёрная'].includes(v.trim()),
+    },
+    {
+        text: 'Дополни фразу (её ты мне написала первой): ……, че не спишь?',
+        type: 'text',
+        validate: v => v.trim() === 'малышня',
+    },
+    {
+        text: 'В скольких съёмных квартирах мы вместе жили за всё время?',
+        type: 'text',
+        validate: v => v.trim() === '6',
+    },
+    {
+        text: 'Какая моя любимая цифра?',
+        type: 'text',
+        validate: v => v.trim() === '3' || v.trim() === '9',
+    },
+    // TODO: допиши завтра — вопрос 8
+    // {
+    //     text: 'Текст вопроса 8',
+    //     type: 'text', // или 'quiz'
+    //     validate: v => v.trim() === 'ответ',
+    //     // options: ['вариант 1', 'вариант 2'], // для type: 'quiz'
+    //     // correctOption: 'вариант 1',
+    // },
+    {
+        text: 'Вопрос 8 — скоро будет! (заглушка: напиши что угодно)',
+        type: 'text',
+        validate: () => true,
+    },
+    // TODO: допиши завтра — вопрос 9
+    {
+        text: 'Вопрос 9 — скоро будет! (заглушка: напиши что угодно)',
+        type: 'text',
+        validate: () => true,
+    },
+    // TODO: допиши завтра — вопрос 10
+    {
+        text: 'Вопрос 10 — скоро будет! (заглушка: напиши что угодно)',
+        type: 'text',
+        validate: () => true,
+    },
+];
+
+const superQuestion = {
+    text: 'Кто главный в нашей семье?',
+    options: [
+        'Тимур',
+        'Папа Арины Тимуровна',
+        'Рустамов Тимур',
+        'Муж Ксении Рустамовой',
+        'Все варианты ответов верны',
+    ],
+    correct: 'Все варианты ответов верны',
+};
+
+const prizes = [
+    'iPhone 18 Pro 1TB',
+    'Поездка в Мадрид',
+    'Посещение шоу фламенко',
+    'Посещение мастер-класса',
+    'Массаж',
+    'Посещение шоу фламенко + поездка в Мадрид',
+];
+
+const WIN_INDEX = 5;
+const SPIN_DURATION = 7000;
+
+const sectorColors = ['#ff6b9d', '#ffc857', '#7ec8e3', '#b388ff', '#69db7c', '#ff8c69'];
+
+let currentQ = 0;
+let answerChecked = false;
+let superChecked = false;
+
+function goTo(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+}
+
+function updateProgress() {
+    const n = currentQ + 1;
+    const total = questions.length;
+    document.getElementById('progress-label').textContent = `Вопрос ${n} из ${total}`;
+    document.getElementById('progress-fill').style.width = `${(n / total) * 100}%`;
+}
+
+function renderQuestion() {
+    answerChecked = false;
+    document.getElementById('encouragement').textContent = '';
+    document.getElementById('check-btn').classList.remove('hidden');
+    document.getElementById('check-btn').disabled = false;
+    document.getElementById('next-btn').classList.add('hidden');
+
+    const q = questions[currentQ];
+    document.getElementById('question-text').textContent = q.text;
+    const container = document.getElementById('answers-container');
+    container.innerHTML = '';
+
+    if (q.type === 'text') {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'text-answer';
+        input.placeholder = 'Твой ответ...';
+        input.autocomplete = 'off';
+        input.addEventListener('input', () => {
+            const pos = input.selectionStart;
+            input.value = input.value.toLowerCase();
+            input.setSelectionRange(pos, pos);
+        });
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !answerChecked) checkAnswer();
+            if (e.key === 'Enter' && answerChecked) nextQuestion();
+        });
+        container.appendChild(input);
+        setTimeout(() => input.focus(), 300);
+    } else if (q.type === 'quiz') {
+        const wrap = document.createElement('div');
+        wrap.className = 'options';
+        q.options.forEach((opt, i) => {
+            const label = document.createElement('label');
+            label.className = 'option';
+            label.innerHTML = `<input type="radio" name="quiz-ans" value="${i}"> ${opt}`;
+            label.addEventListener('click', () => {
+                wrap.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+                label.classList.add('selected');
+                label.querySelector('input').checked = true;
+            });
+            wrap.appendChild(label);
+        });
+        container.appendChild(wrap);
+    }
+
+    updateProgress();
+}
+
+function getTextAnswer() {
+    const el = document.getElementById('text-answer');
+    return el ? el.value.trim().toLowerCase() : '';
+}
+
+function isCorrect(q) {
+    if (q.type === 'text') return q.validate(getTextAnswer());
+    const selected = document.querySelector('input[name="quiz-ans"]:checked');
+    if (!selected) return false;
+    return q.options[parseInt(selected.value, 10)] === q.correctOption;
+}
+
+function markAnswer(correct) {
+    if (questions[currentQ].type === 'text') {
+        const input = document.getElementById('text-answer');
+        input.classList.add(correct ? 'correct' : 'incorrect');
+        input.disabled = true;
+    } else {
+        const selected = document.querySelector('input[name="quiz-ans"]:checked');
+        if (selected) {
+            const label = selected.closest('.option');
+            label.classList.add(correct ? 'correct' : 'incorrect');
+            if (!correct) {
+                document.querySelectorAll('.option').forEach((opt, i) => {
+                    if (questions[currentQ].options[i] === questions[currentQ].correctOption) {
+                        opt.classList.add('correct');
+                    }
                 });
             }
         }
+        document.querySelectorAll('input[name="quiz-ans"]').forEach(r => r.disabled = true);
+    }
+}
 
-        function showWheel() {
-            document.getElementById("quiz-block").classList.add("hidden");
-            document.getElementById("wheel-block").classList.remove("hidden");
-            drawWheel();
+function checkAnswer() {
+    if (answerChecked) return;
+    const q = questions[currentQ];
+    if (q.type === 'quiz' && !document.querySelector('input[name="quiz-ans"]:checked')) return;
+    if (q.type === 'text' && !getTextAnswer()) return;
+
+    const correct = isCorrect(q);
+    markAnswer(correct);
+    answerChecked = true;
+
+    document.getElementById('encouragement').textContent = ENCOURAGEMENTS[currentQ] || '';
+    document.getElementById('check-btn').classList.add('hidden');
+    document.getElementById('next-btn').classList.remove('hidden');
+
+    if (currentQ === questions.length - 1) {
+        document.getElementById('next-btn').textContent = 'Все ответила — давай подарок!!!';
+    } else {
+        document.getElementById('next-btn').textContent = 'Дальше';
+    }
+}
+
+function nextQuestion() {
+    if (!answerChecked) return;
+    currentQ++;
+    if (currentQ >= questions.length) {
+        goTo('screen-choice');
+    } else {
+        renderQuestion();
+    }
+}
+
+function startSuperGame(tease) {
+    if (tease) {
+        goTo('screen-tease');
+    } else {
+        goToSuperLoading();
+    }
+}
+
+function goToSuperLoading() {
+    goTo('screen-super-loading');
+    document.getElementById('loading-text').innerHTML =
+        'Риск — дело благородное, уважаю! Подгружаю вопрос<span class="loading-dots"></span>';
+    setTimeout(() => goTo('screen-super-ready'), 5000);
+}
+
+function renderSuperQuestion() {
+    superChecked = false;
+    document.getElementById('super-encouragement').textContent = '';
+    document.getElementById('super-check-btn').classList.remove('hidden');
+    document.getElementById('super-wheel-btn').classList.add('hidden');
+
+    const container = document.getElementById('super-options');
+    container.innerHTML = '';
+    superQuestion.options.forEach((opt, i) => {
+        const label = document.createElement('label');
+        label.className = 'option';
+        label.innerHTML = `<input type="radio" name="super-ans" value="${i}"> ${opt}`;
+        label.addEventListener('click', () => {
+            container.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+            label.classList.add('selected');
+            label.querySelector('input').checked = true;
+        });
+        container.appendChild(label);
+    });
+}
+
+function checkSuperAnswer() {
+    if (superChecked) return;
+    const selected = document.querySelector('input[name="super-ans"]:checked');
+    if (!selected) return;
+
+    const chosen = superQuestion.options[parseInt(selected.value, 10)];
+    const correct = chosen === superQuestion.correct;
+
+    const label = selected.closest('.option');
+    label.classList.add(correct ? 'correct' : 'incorrect');
+    if (!correct) {
+        document.querySelectorAll('#super-options .option').forEach((opt, i) => {
+            if (superQuestion.options[i] === superQuestion.correct) opt.classList.add('correct');
+        });
+    }
+    document.querySelectorAll('input[name="super-ans"]').forEach(r => r.disabled = true);
+
+    superChecked = true;
+    document.getElementById('super-check-btn').classList.add('hidden');
+    document.getElementById('super-wheel-btn').classList.remove('hidden');
+}
+
+function goToWheel() {
+    goTo('screen-wheel');
+    initWheel();
+}
+
+/* ─── Wheel ─── */
+let wheelCanvas, wheelCtx, wheelSize, wheelRotation = 0;
+let isSpinning = false;
+let animFrame = null;
+
+function initWheel() {
+    wheelCanvas = document.getElementById('wheel-canvas');
+    const wrap = wheelCanvas.parentElement;
+    wheelSize = wrap.clientWidth;
+    wheelCanvas.width = wheelSize * 2;
+    wheelCanvas.height = wheelSize * 2;
+    wheelCtx = wheelCanvas.getContext('2d');
+    wheelRotation = 0;
+    isSpinning = false;
+    document.getElementById('spin-btn').disabled = false;
+    document.getElementById('claim-btn').classList.add('hidden');
+    document.getElementById('prize-result').textContent = '';
+    drawWheel();
+}
+
+function drawWheel() {
+    const ctx = wheelCtx;
+    const size = wheelCanvas.width;
+    const cx = size / 2;
+    const cy = size / 2;
+    const radius = size / 2 - 8;
+    const n = prizes.length;
+    const arc = (2 * Math.PI) / n;
+
+    ctx.clearRect(0, 0, size, size);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(wheelRotation);
+
+    for (let i = 0; i < n; i++) {
+        const start = i * arc - Math.PI / 2;
+        const end = start + arc;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, start, end);
+        ctx.closePath();
+        ctx.fillStyle = sectorColors[i % sectorColors.length];
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.rotate(start + arc / 2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${Math.max(11, radius * 0.065)}px sans-serif`;
+        ctx.shadowColor = 'rgba(0,0,0,0.35)';
+        ctx.shadowBlur = 3;
+
+        const lines = wrapText(ctx, prizes[i], radius * 0.82);
+        const lineH = Math.max(13, radius * 0.075);
+        const totalH = lines.length * lineH;
+        lines.forEach((line, li) => {
+            ctx.fillText(line, radius - 14, -totalH / 2 + li * lineH + lineH * 0.75);
+        });
+        ctx.restore();
+    }
+
+    // центральный круг (под кнопкой)
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.18, 0, 2 * Math.PI);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.strokeStyle = '#b83264';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function wrapText(ctx, text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+        const test = line ? `${line} ${word}` : word;
+        if (ctx.measureText(test).width > maxWidth && line) {
+            lines.push(line);
+            line = word;
+        } else {
+            line = test;
         }
+    }
+    if (line) lines.push(line);
+    return lines.length ? lines : [text];
+}
 
-        // Логика рисования колеса
-        const canvas = document.getElementById("canvas");
-        const ctx = canvas.getContext("2d");
-        const numSectors = prizes.length;
-        const arc = Math.PI / (numSectors / 2);
-        let startAngle = 0;
+function spinWheel() {
+    if (isSpinning) return;
+    isSpinning = true;
+    document.getElementById('spin-btn').disabled = true;
+    document.getElementById('prize-result').textContent = '';
 
-        function drawWheel() {
-            for (let i = 0; i < numSectors; i++) {
-                const angle = startAngle + i * arc;
-                ctx.fillStyle = i % 2 === 0 ? "#ffcc00" : "#ff6666";
-                ctx.beginPath();
-                ctx.moveTo(150, 150);
-                ctx.arc(150, 150, 140, angle, angle + arc);
-                ctx.lineTo(150, 150);
-                ctx.fill();
+    const n = prizes.length;
+    const arc = (2 * Math.PI) / n;
+    const extraSpins = 5 + Math.random() * 2;
+    // указатель сверху: сектор WIN_INDEX должен оказаться под стрелкой
+    const targetMod = -(WIN_INDEX * arc + arc / 2) % (2 * Math.PI);
+    let currentMod = wheelRotation % (2 * Math.PI);
+    let delta = targetMod - currentMod;
+    if (delta > 0) delta -= 2 * Math.PI;
+    const totalRotation = extraSpins * 2 * Math.PI + delta;
 
-                // Текст
-                ctx.save();
-                ctx.translate(150, 150);
-                ctx.rotate(angle + arc / 2);
-                ctx.fillStyle = "#fff";
-                ctx.font = "bold 14px sans-serif";
-                ctx.fillText(prizes[i], 50, 5);
-                ctx.restore();
-            }
+    const startRot = wheelRotation;
+    const startTime = performance.now();
+
+    function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+    }
+
+    function frame(now) {
+        const elapsed = now - startTime;
+        const t = Math.min(elapsed / SPIN_DURATION, 1);
+        wheelRotation = startRot + totalRotation * easeOutCubic(t);
+        drawWheel();
+
+        if (t < 1) {
+            animFrame = requestAnimationFrame(frame);
+        } else {
+            isSpinning = false;
+            onWheelStop();
         }
+    }
 
-        // Логика вращения
-        let spinTimeout = null;
-        let spinAngleStart = 0;
-        let spinTime = 0;
-        let spinTimeTotal = 0;
+    animFrame = requestAnimationFrame(frame);
+}
 
-        function spinWheel() {
-            spinAngleStart = Math.random() * 10 + 10;
-            spinTime = 0;
-            spinTimeTotal = Math.random() * 3000 + 4000; // 4-7 секунд плавной анимации
-            rotateWheel();
-        }
+function onWheelStop() {
+    document.getElementById('prize-result').textContent = `🎉 ${prizes[WIN_INDEX]}!`;
+    document.getElementById('claim-btn').classList.remove('hidden');
+    launchConfetti();
+}
 
-        function rotateWheel() {
-            spinTime += 30;
-            if (spinTime >= spinTimeTotal) {
-                stopRotateWheel();
-                return;
-            }
-            const spinAngle = spinAngleStart - easeOut(spinTime, 0, spinAngleStart, spinTimeTotal);
-            startAngle += (spinAngle * Math.PI / 180);
-            drawWheel();
-            spinTimeout = setTimeout(rotateWheel(), 30);
-        }
+function claimPrize() {
+    goTo('screen-final');
+}
 
-        function stopRotateWheel() {
-            clearTimeout(spinTimeout);
-            const degrees = startAngle * 180 / Math.PI + 90;
-            const arcd = arc * 180 / Math.PI;
-            const index = Math.floor((360 - degrees % 360) / arcd);
-            const prize = prizes[(index + numSectors) % numSectors];
-            document.getElementById("prize-text").innerText = `Вы выиграли: ${prize}`;
-        }
+/* ─── Confetti ─── */
+function launchConfetti() {
+    const canvas = document.getElementById('confetti-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-        function easeOut(t, b, c, d) {
-            const ts = (t /= d) * t;
-            const tc = ts * t;
-            return b + c * (tc + -3 * ts + 3 * t);
-        }
-    </script>
+    const colors = ['#ff6b9d', '#ffc857', '#b83264', '#7ec8e3', '#69db7c', '#b388ff'];
+    const pieces = Array.from({ length: 120 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height - canvas.height,
+        w: 6 + Math.random() * 8,
+        h: 4 + Math.random() * 6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        vx: (Math.random() - 0.5) * 4,
+        vy: 2 + Math.random() * 4,
+        rot: Math.random() * 360,
+        vr: (Math.random() - 0.5) * 12,
+    }));
+
+    let frame = 0;
+    const maxFrames = 160;
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pieces.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.08;
+            p.rot += p.vr;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rot * Math.PI) / 180);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+            ctx.restore();
+        });
+        frame++;
+        if (frame < maxFrames) requestAnimationFrame(draw);
+        else ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    draw();
+}
+
+// Init
+renderQuestion();
+renderSuperQuestion();
+
+window.addEventListener('resize', () => {
+    if (document.getElementById('screen-wheel').classList.contains('active')) {
+        initWheel();
+    }
+});
+</script>
 </body>
 </html>
