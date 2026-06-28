@@ -610,7 +610,7 @@ const questions = [
     {
         text: 'Какого цвета был зонт, под которым мы укрылись вместе первый раз?',
         type: 'quiz',
-        options: ['Зеленый', 'Желтый', 'Белый', 'Синий'],
+        options: ['Зеленый', 'Желтый', 'Белый', 'Синий', 'Голубой'],
         correctOption: 'Синий',
     },
     {
@@ -1046,32 +1046,33 @@ function spinWheel() {
     document.getElementById('prize-result').textContent = '';
 
     const targetRotation = getTargetRotation(WIN_INDEX);
-    const startNorm = normalizeAngle(wheelRotation);
+    const startRot = wheelRotation;
+    const startNorm = normalizeAngle(startRot);
+
     let deltaForward = targetRotation - startNorm;
     if (deltaForward <= 0) deltaForward += 2 * Math.PI;
 
-    const extraSpins = 5 + Math.random() * 2;
-    const totalRotation = extraSpins * 2 * Math.PI + deltaForward;
+    const extraFullTurns = 5 + Math.floor(Math.random() * 3); // целое число оборотов — без скачка в конце
+    const totalRotation = extraFullTurns * 2 * Math.PI + deltaForward;
+    const finalRotation = startRot + totalRotation;
 
-    const startRot = wheelRotation;
     const startTime = performance.now();
 
-    function easeOutCubic(t) {
-        return 1 - Math.pow(1 - t, 3);
+    function easeOutQuint(t) {
+        return 1 - Math.pow(1 - t, 5);
     }
 
     function frame(now) {
         const elapsed = now - startTime;
         const t = Math.min(elapsed / SPIN_DURATION, 1);
 
+        wheelRotation = startRot + totalRotation * easeOutQuint(t);
+        drawWheel();
+
         if (t < 1) {
-            wheelRotation = startRot + totalRotation * easeOutCubic(t);
-            drawWheel();
             animFrame = requestAnimationFrame(frame);
         } else {
-            // Точная фиксация — стрелка и текст совпадают
-            const fullTurns = Math.round((startRot + totalRotation - targetRotation) / (2 * Math.PI));
-            wheelRotation = fullTurns * 2 * Math.PI + targetRotation;
+            wheelRotation = finalRotation;
             drawWheel();
             isSpinning = false;
             onWheelStop();
