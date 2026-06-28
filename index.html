@@ -329,6 +329,103 @@
             font-weight: 600;
             margin-bottom: 8px;
         }
+
+        .hidden { display: none !important; }
+
+        .warmup-banner {
+            text-align: center;
+            font-size: 1.15rem;
+            line-height: 1.6;
+            color: #b83264;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .timer-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 16px;
+            background: linear-gradient(135deg, #fff5f8, #ffe8ef);
+            border-radius: 16px;
+            border: 2px dashed #e85d8a;
+        }
+
+        .bomb-wrap {
+            position: relative;
+            font-size: 3.2rem;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .bomb-spark {
+            position: absolute;
+            top: -8px;
+            right: -6px;
+            font-size: 1.4rem;
+            animation: spark 0.35s ease-in-out infinite alternate;
+        }
+
+        @keyframes spark {
+            from { transform: scale(0.8) rotate(-10deg); opacity: 0.7; }
+            to { transform: scale(1.2) rotate(10deg); opacity: 1; }
+        }
+
+        .timer-count {
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: #b83264;
+            animation: timerPulse 1s ease-in-out infinite;
+        }
+
+        .timer-count.urgent {
+            color: #ef4444;
+            animation: timerUrgent 0.4s ease-in-out infinite;
+        }
+
+        @keyframes timerPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        @keyframes timerUrgent {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        .timer-label {
+            font-size: 0.85rem;
+            color: #9a4d6a;
+            margin-top: 4px;
+        }
+
+        .answer-reveal {
+            text-align: center;
+            padding: 20px;
+            margin-bottom: 12px;
+            background: #fef2f2;
+            border: 2px solid #ef4444;
+            border-radius: 16px;
+            animation: revealPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .answer-reveal .reveal-label {
+            font-size: 0.9rem;
+            color: #9a4d6a;
+            margin-bottom: 6px;
+        }
+
+        .answer-reveal .reveal-value {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #b83264;
+        }
+
+        @keyframes revealPop {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -357,10 +454,20 @@
             <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:10%"></div></div>
         </div>
         <p id="question-text"></p>
+        <div id="timer-zone" class="hidden"></div>
         <div id="answers-container"></div>
         <p class="encouragement" id="encouragement"></p>
         <button class="btn" id="check-btn" onclick="checkAnswer()">Проверить</button>
         <button class="btn hidden" id="next-btn" onclick="nextQuestion()">Дальше</button>
+    </div>
+</div>
+
+<!-- Разминка перед 8-м вопросом -->
+<div id="screen-warmup" class="screen">
+    <div class="card">
+        <p class="warmup-banner">А теперь разомнём извилины 🧠</p>
+        <h2>Готова?</h2>
+        <button class="btn" onclick="startWarmupQuestion()">Да, погнали!</button>
     </div>
 </div>
 
@@ -438,8 +545,9 @@ const ENCOURAGEMENTS = [
     'Сама малышня ;)',
     'Будем надеяться, что гастроли по съёмным квартирам скоро закончатся 🏠',
     'А скажи хоть теперь, какая у тебя? 🤔',
-    'Ты на финишной прямой! 🌟',  // заглушка для вопроса 8
-    'Ещё один шаг — и подарок! 🎁', // заглушка для вопроса 9
+    'Мозги разогрелись! Ты успела — молодец! ⚡',
+    'Синий зонт — наш самый романтичный дождь ☔💙',
+    'Вот это правильный ответ! Не важно сколько — главное как ❤️',
 ];
 
 const WRONG_ENCOURAGEMENTS = [
@@ -450,10 +558,12 @@ const WRONG_ENCOURAGEMENTS = [
     'Сообщение легендарное же у нас — надо помнить!',
     'Столько вещей собранных и перевезённых — думал, ответишь правильно)',
     'Пум-пум-пум, а напомни, какая у тебя?',
-    '', // TODO: допиши завтра — вопрос 8
-    '', // TODO: допиши завтра — вопрос 9
-    '', // TODO: допиши завтра — вопрос 10
+    '4 буквы «А» — вот и разгадка! В следующий раз успеешь 💣',
+    'Зонт был синий! Зато ты его точно запомнишь теперь )',
+    'Можно было посчитать… а можно просто выбрать главное ❤️',
 ];
+
+const TIMEOUT_ENCOURAGEMENT = 'Время вышло! Правильный ответ — 4. Быстро же надо было! 💣';
 
 const questions = [
     {
@@ -491,30 +601,30 @@ const questions = [
         type: 'text',
         validate: v => v.trim() === '3' || v.trim() === '9',
     },
-    // TODO: допиши завтра — вопрос 8
-    // {
-    //     text: 'Текст вопроса 8',
-    //     type: 'text', // или 'quiz'
-    //     validate: v => v.trim() === 'ответ',
-    //     // options: ['вариант 1', 'вариант 2'], // для type: 'quiz'
-    //     // correctOption: 'вариант 1',
-    // },
     {
-        text: 'Вопрос 8 — скоро будет! (заглушка: напиши что угодно)',
-        type: 'text',
-        validate: () => true,
+        text: 'Сколько букв «А» в твоём ФИО?',
+        type: 'timed-text',
+        timeLimit: 4,
+        validate: v => v.trim() === '4',
     },
-    // TODO: допиши завтра — вопрос 9
     {
-        text: 'Вопрос 9 — скоро будет! (заглушка: напиши что угодно)',
-        type: 'text',
-        validate: () => true,
+        text: 'Какого цвета был зонт, под которым мы укрылись вместе первый раз?',
+        type: 'quiz',
+        options: ['Зеленый', 'Желстый', 'Белый', 'Синий'],
+        correctOption: 'Синий',
     },
-    // TODO: допиши завтра — вопрос 10
     {
-        text: 'Вопрос 10 — скоро будет! (заглушка: напиши что угодно)',
-        type: 'text',
-        validate: () => true,
+        text: 'Сколько дней в первый год знакомства мы провели вместе?',
+        type: 'quiz',
+        options: [
+            '300',
+            '276',
+            '289',
+            '365',
+            'Ну ты дал, конечно, есть вопросы попроще?',
+            'Не важно сколько, главное как ❤️',
+        ],
+        correctOption: 'Не важно сколько, главное как ❤️',
     },
 ];
 
@@ -522,7 +632,7 @@ const superQuestion = {
     text: 'Кто главный в нашей семье?',
     options: [
         'Тимур',
-        'Папа Арины Тимуровна',
+        'Папа Арины Тимуровны',
         'Рустамов Тимур',
         'Муж Ксении Рустамовой',
         'Все варианты ответов верны',
@@ -547,8 +657,18 @@ const sectorColors = ['#ff6b9d', '#ffc857', '#7ec8e3', '#b388ff', '#69db7c', '#f
 let currentQ = 0;
 let answerChecked = false;
 let superChecked = false;
+let questionTimer = null;
+let timerExpired = false;
+
+function clearQuestionTimer() {
+    if (questionTimer) {
+        clearInterval(questionTimer);
+        questionTimer = null;
+    }
+}
 
 function goTo(id) {
+    if (id !== 'screen-quiz') clearQuestionTimer();
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     window.scrollTo(0, 0);
@@ -562,34 +682,43 @@ function updateProgress() {
 }
 
 function renderQuestion() {
+    clearQuestionTimer();
     answerChecked = false;
+    timerExpired = false;
     document.getElementById('encouragement').textContent = '';
     document.getElementById('check-btn').classList.remove('hidden');
     document.getElementById('check-btn').disabled = false;
     document.getElementById('next-btn').classList.add('hidden');
+    document.getElementById('timer-zone').classList.add('hidden');
+    document.getElementById('timer-zone').innerHTML = '';
 
     const q = questions[currentQ];
     document.getElementById('question-text').textContent = q.text;
     const container = document.getElementById('answers-container');
     container.innerHTML = '';
 
-    if (q.type === 'text') {
+    if (q.type === 'text' || q.type === 'timed-text') {
         const input = document.createElement('input');
         input.type = 'text';
         input.id = 'text-answer';
         input.placeholder = 'Твой ответ...';
         input.autocomplete = 'off';
-        input.addEventListener('input', () => {
-            const pos = input.selectionStart;
-            input.value = input.value.toLowerCase();
-            input.setSelectionRange(pos, pos);
-        });
+        input.inputMode = q.type === 'timed-text' ? 'numeric' : 'text';
+        if (q.type === 'text') {
+            input.addEventListener('input', () => {
+                const pos = input.selectionStart;
+                input.value = input.value.toLowerCase();
+                input.setSelectionRange(pos, pos);
+            });
+        }
         input.addEventListener('keydown', e => {
-            if (e.key === 'Enter' && !answerChecked) checkAnswer();
+            if (e.key === 'Enter' && !answerChecked && !timerExpired) checkAnswer();
             if (e.key === 'Enter' && answerChecked) nextQuestion();
         });
         container.appendChild(input);
         setTimeout(() => input.focus(), 300);
+
+        if (q.type === 'timed-text') startTimedQuestion(q);
     } else if (q.type === 'quiz') {
         const wrap = document.createElement('div');
         wrap.className = 'options';
@@ -610,20 +739,79 @@ function renderQuestion() {
     updateProgress();
 }
 
+function startTimedQuestion(q) {
+    const zone = document.getElementById('timer-zone');
+    zone.classList.remove('hidden');
+    let secondsLeft = q.timeLimit;
+
+    zone.innerHTML = `
+        <div class="bomb-wrap">💣<span class="bomb-spark">✨</span></div>
+        <div class="timer-count" id="timer-count">${secondsLeft}</div>
+        <div class="timer-label">секунд на ответ!</div>
+    `;
+
+    questionTimer = setInterval(() => {
+        secondsLeft--;
+        const countEl = document.getElementById('timer-count');
+        if (!countEl) return;
+
+        countEl.textContent = secondsLeft;
+        if (secondsLeft <= 2) countEl.classList.add('urgent');
+
+        if (secondsLeft <= 0) {
+            clearQuestionTimer();
+            onTimerExpired(q);
+        }
+    }, 1000);
+}
+
+function onTimerExpired(q) {
+    if (answerChecked || timerExpired) return;
+    timerExpired = true;
+
+    const zone = document.getElementById('timer-zone');
+    zone.innerHTML = `
+        <div class="bomb-wrap">💥</div>
+        <div class="answer-reveal">
+            <div class="reveal-label">Время вышло! Правильный ответ:</div>
+            <div class="reveal-value">4</div>
+        </div>
+    `;
+
+    const input = document.getElementById('text-answer');
+    if (input) {
+        input.value = '4';
+        input.classList.add('incorrect');
+        input.disabled = true;
+    }
+
+    answerChecked = true;
+    document.getElementById('encouragement').textContent = TIMEOUT_ENCOURAGEMENT;
+    document.getElementById('check-btn').classList.add('hidden');
+    document.getElementById('next-btn').classList.remove('hidden');
+    document.getElementById('next-btn').textContent = 'Дальше';
+}
+
+function startWarmupQuestion() {
+    goTo('screen-quiz');
+    renderQuestion();
+}
+
 function getTextAnswer() {
     const el = document.getElementById('text-answer');
     return el ? el.value.trim().toLowerCase() : '';
 }
 
 function isCorrect(q) {
-    if (q.type === 'text') return q.validate(getTextAnswer());
+    if (q.type === 'text' || q.type === 'timed-text') return q.validate(getTextAnswer());
     const selected = document.querySelector('input[name="quiz-ans"]:checked');
     if (!selected) return false;
     return q.options[parseInt(selected.value, 10)] === q.correctOption;
 }
 
 function markAnswer(correct) {
-    if (questions[currentQ].type === 'text') {
+    const q = questions[currentQ];
+    if (q.type === 'text' || q.type === 'timed-text') {
         const input = document.getElementById('text-answer');
         input.classList.add(correct ? 'correct' : 'incorrect');
         input.disabled = true;
@@ -645,10 +833,15 @@ function markAnswer(correct) {
 }
 
 function checkAnswer() {
-    if (answerChecked) return;
+    if (answerChecked || timerExpired) return;
     const q = questions[currentQ];
     if (q.type === 'quiz' && !document.querySelector('input[name="quiz-ans"]:checked')) return;
-    if (q.type === 'text' && !getTextAnswer()) return;
+    if ((q.type === 'text' || q.type === 'timed-text') && !getTextAnswer()) return;
+
+    clearQuestionTimer();
+    if (q.type === 'timed-text') {
+        document.getElementById('timer-zone').classList.add('hidden');
+    }
 
     const correct = isCorrect(q);
     markAnswer(correct);
@@ -671,6 +864,8 @@ function nextQuestion() {
     currentQ++;
     if (currentQ >= questions.length) {
         goTo('screen-choice');
+    } else if (currentQ === 7) {
+        goTo('screen-warmup');
     } else {
         renderQuestion();
     }
